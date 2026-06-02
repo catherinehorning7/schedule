@@ -624,7 +624,7 @@ let alarmTimers = [];
 let dragSrcIndex = null;
 let dragOverIndex = null;
 
-const STORAGE_KEY = 'daily_schedule_v5';
+const STORAGE_KEY = 'daily_schedule_v6';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
@@ -916,25 +916,28 @@ document.getElementById('save-btn').addEventListener('click', () => {
   const prevEnd = blocks[editingId].end;
   blocks[editingId] = { ...blocks[editingId], label, start, end, emoji, color, alarm, locked };
 
-  // If end time changed, cascade to next unlocked block
-  // Stop cascade at locked blocks — next unlocked block after a locked one is not touched
+  // If end time changed, chain-cascade all following unlocked blocks
+  // Stop the chain when a locked block is hit; collapse the block just before the locked one if it overruns
   if (end !== prevEnd) {
-    const nextIdx = blocks.findIndex((b, i) => i > editingId && !b.done);
-    if (nextIdx !== -1 && !blocks[nextIdx].locked) {
-      const nextDuration = timeToMins(blocks[nextIdx].end) - timeToMins(blocks[nextIdx].start);
-      blocks[nextIdx].start = end;
-      // Preserve duration — end shifts too
-      blocks[nextIdx].end = minsToTime(timeToMins(end) + nextDuration);
-      // If next block now overruns a downstream locked block, collapse it
-      // Find next locked block after nextIdx
-      const lockedIdx = blocks.findIndex((b, i) => i > nextIdx && b.locked && !b.done);
-      if (lockedIdx !== -1) {
-        const lockedStart = timeToMins(blocks[lockedIdx].start);
-        if (timeToMins(blocks[nextIdx].end) > lockedStart) {
-          // Collapse: start = end of prev, end = locked block start (may be zero or negative duration)
-          blocks[nextIdx].end = blocks[lockedIdx].start;
-        }
+    let prevBlockEnd = end;
+    for (let i = editingId + 1; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.done) continue;
+      if (b.locked) {
+        // Check if previous cascade pushed past this locked block
+        // Nothing to do — locked block stays put; the block before it may be collapsed (handled below)
+        break;
       }
+      const duration = timeToMins(b.end) - timeToMins(b.start);
+      b.start = prevBlockEnd;
+      b.end = minsToTime(timeToMins(prevBlockEnd) + Math.max(0, duration));
+      // Check if this block now overruns the next locked block
+      const nextLocked = blocks.slice(i + 1).find(lb => lb.locked && !lb.done);
+      if (nextLocked && timeToMins(b.end) > timeToMins(nextLocked.start)) {
+        b.end = nextLocked.start; // collapse
+        break;
+      }
+      prevBlockEnd = b.end;
     }
   }
 
