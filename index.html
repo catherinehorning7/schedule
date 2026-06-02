@@ -202,6 +202,62 @@
   }
   .alarm-dot.active { display: block; }
 
+  /* Checkbox */
+  .check-btn {
+    background: none;
+    border: 2px solid var(--border);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 4px;
+    margin-right: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: transparent;
+    transition: all 0.15s;
+  }
+  .check-btn:active { transform: scale(0.88); }
+  .block.done .check-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .block.done .block-label {
+    text-decoration: line-through;
+    color: var(--text-dim);
+  }
+  .block.done .block-time { opacity: 0.5; }
+  .block.done .color-bar { opacity: 0.4; }
+  .block.done { opacity: 0.7; }
+
+  /* Completed divider */
+  .completed-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px 4px;
+    margin-top: 4px;
+  }
+  .completed-divider span {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+  .completed-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
   /* Modal */
   .modal-overlay {
     position: fixed;
@@ -565,9 +621,13 @@ function fmt12(t) {
 function render() {
   const list = document.getElementById('list');
   list.innerHTML = '';
-  blocks.forEach((b, i) => {
+
+  const active = blocks.filter(b => !b.done);
+  const done = blocks.filter(b => b.done);
+
+  const renderBlock = (b, i) => {
     const el = document.createElement('div');
-    el.className = 'block';
+    el.className = 'block' + (b.done ? ' done' : '');
     el.dataset.index = i;
     el.innerHTML = `
       <div class="color-bar" style="background:${b.color}"></div>
@@ -575,27 +635,51 @@ function render() {
       <div class="block-content">
         <div class="block-top">
           <span class="block-emoji">${b.emoji}</span>
-          <span class="block-label">${b.label}</span>
+          <span class="block-label">${b.label || '—'}</span>
           <span class="alarm-dot ${b.alarm ? 'active' : ''}"></span>
         </div>
         <div class="block-time">${fmt12(b.start)} – ${fmt12(b.end)}</div>
       </div>
       <div class="block-actions">
         <button class="icon-btn edit-btn" data-index="${i}" title="Edit">✎</button>
+        <button class="check-btn" data-index="${i}" title="Complete">${b.done ? '✓' : ''}</button>
       </div>
     `;
 
-    // Edit button
     el.querySelector('.edit-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       openEdit(parseInt(e.currentTarget.dataset.index));
     });
 
-    // Drag events (touch + mouse)
-    setupDrag(el, i);
+    el.querySelector('.check-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(e.currentTarget.dataset.index);
+      blocks[idx].done = !blocks[idx].done;
+      save();
+      render();
+    });
+
+    if (!b.done) setupDrag(el, i);
 
     list.appendChild(el);
+  };
+
+  active.forEach((b) => {
+    const i = blocks.indexOf(b);
+    renderBlock(b, i);
   });
+
+  if (done.length > 0) {
+    const divider = document.createElement('div');
+    divider.className = 'completed-divider';
+    divider.innerHTML = '<span>Completed</span>';
+    list.appendChild(divider);
+    done.forEach((b) => {
+      const i = blocks.indexOf(b);
+      renderBlock(b, i);
+    });
+  }
+
   scheduleAlarms();
 }
 
@@ -780,7 +864,15 @@ document.getElementById('save-btn').addEventListener('click', () => {
   const color = document.querySelector('#color-row .color-swatch.selected')?.dataset.color || COLORS[0];
   const alarm = document.getElementById('edit-alarm').checked;
 
+  const prevEnd = blocks[editingId].end;
   blocks[editingId] = { ...blocks[editingId], label, start, end, emoji, color, alarm };
+
+  // If end time changed, update the next block's start time to match
+  if (end !== prevEnd) {
+    const nextIdx = blocks.findIndex((b, i) => i > editingId && !b.done);
+    if (nextIdx !== -1) blocks[nextIdx].start = end;
+  }
+
   save();
   render();
   closeModal();
@@ -835,7 +927,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
     btn.textContent = 'Reset';
     btn.style.borderColor = '';
     btn.style.color = '';
-    blocks = DEFAULT_BLOCKS.map((b,i) => ({ ...b, id: Date.now()+i }));
+    blocks = DEFAULT_BLOCKS.map((b,i) => ({ ...b, id: Date.now()+i, done: false }));
     save();
     render();
     showBanner('Schedule reset to defaults');
