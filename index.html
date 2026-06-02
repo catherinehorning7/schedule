@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Daily Schedule</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --border: #e0ddd6;
+    --text: #1a1916;
+    --text-dim: #6b6860;
+    --accent: #3d6b4f;
+    --accent-light: #e8f0eb;
+    --danger: #c0392b;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overscroll-behavior: none;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: var(--text);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.danger-btn { border-color: #e0b0ad; color: var(--danger); }
+  .btn.small { padding: 5px 9px; font-size: 12px; }
+
+  #list {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 80px;
+  }
+
+  .block {
+    border-radius: var(--radius);
+    border: 1.5px solid transparent;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.15s, opacity 0.2s;
+    position: relative;
+    touch-action: none;
+  }
+
+  .block.dragging {
+    opacity: 0.55;
+    transform: scale(0.98);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    z-index: 999;
+  }
+
+  .block.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .color-bar {
+    width: 5px;
+    flex-shrink: 0;
+    border-radius: 0;
+    cursor: row-resize;
+  }
+
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    flex-shrink: 0;
+    cursor: grab;
+    color: #c0bdb6;
+    font-size: 15px;
+    user-select: none;
+  }
+  .drag-handle:active { cursor: grabbing; }
+
+  .block-content {
+    flex: 1;
+    padding: 9px 10px 9px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .block-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .block-emoji {
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .block-label {
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .block-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+
+  .block-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-right: 8px;
+    flex-shrink: 0;
+  }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 5px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    color: var(--text-dim);
+    line-height: 1;
+  }
+  .icon-btn:active { background: var(--border); }
+
+  /* Alarm indicator */
+  .alarm-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #e67e22;
+    flex-shrink: 0;
+    display: none;
+  }
+  .alarm-dot.active { display: block; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .modal {
+    background: var(--surface);
+    border-radius: 18px 18px 0 0;
+    padding: 20px 20px 36px;
+    width: 100%;
+    max-width: 520px;
+    transform: translateY(30px);
+    transition: transform 0.25s cubic-bezier(0.32,0.72,0,1);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h2 {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 18px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .field {
+    margin-bottom: 14px;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .field input[type="text"],
+  .field input[type="time"] {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 15px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  .color-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .color-swatch.selected { border-color: var(--text); transform: scale(1.15); }
+  .color-swatch:active { transform: scale(0.92); }
+
+  .emoji-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .emoji-option {
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  .emoji-option.selected { border-color: var(--accent); background: var(--accent-light); }
+
+  .alarm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .toggle {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 13px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+  .modal-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .modal-buttons .btn { flex: 1; padding: 12px; font-size: 14px; }
+
+  /* Floating add button */
+  #fab {
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    z-index: 150;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 24px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(61,107,79,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  #fab:active { transform: scale(0.92); box-shadow: 0 2px 8px rgba(61,107,79,0.3); }
+
+  /* Notification banner */
+  #notif-banner {
+    position: fixed;
+    top: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1916;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 300;
+    transition: top 0.3s cubic-bezier(0.32,0.72,0,1);
+    max-width: 90vw;
+    text-align: center;
+    pointer-events: none;
+  }
+  #notif-banner.show { top: 16px; }
+
+  /* Reset confirm */
+  .reset-confirm {
+    font-size: 13px;
+    color: var(--danger);
+    text-align: center;
+    margin-top: 8px;
+    display: none;
+  }
+  .reset-confirm.show { display: block; }
+
+  .time-fields { display: flex; gap: 10px; }
+  .time-fields .field { flex: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⏱ Daily Schedule</h1>
+  <div class="header-actions">
+    <button class="btn small" id="reset-btn">Reset</button>
+    <button class="btn small primary" id="notif-btn">🔔 Allow Alerts</button>
+  </div>
+</header>
+
+<div id="list"></div>
+
+<button id="fab">+</button>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-title">Edit Block</h2>
+    <div class="field">
+      <label>Label</label>
+      <input type="text" id="edit-label" placeholder="Block name">
+    </div>
+    <div class="time-fields">
+      <div class="field">
+        <label>Start</label>
+        <input type="time" id="edit-start">
+      </div>
+      <div class="field">
+        <label>End</label>
+        <input type="time" id="edit-end">
+      </div>
+    </div>
+    <div class="field">
+      <label>Emoji</label>
+      <div class="emoji-row" id="emoji-row"></div>
+    </div>
+    <div class="field">
+      <label>Color</label>
+      <div class="color-row" id="color-row"></div>
+    </div>
+    <div class="field">
+      <label>Start-time Alarm</label>
+      <div class="alarm-row">
+        <label class="toggle">
+          <input type="checkbox" id="edit-alarm">
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:13px;color:var(--text-dim)">Notify at block start time</span>
+      </div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn danger-btn" id="delete-btn">Delete</button>
+      <button class="btn" id="cancel-btn">Cancel</button>
+      <button class="btn primary" id="save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="notif-banner"></div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────
+const COLORS = [
+  '#f8d7da','#fce5cd','#fff2cc','#d9ead3','#d0e4f3','#e8d5f0',
+  '#fde8d8','#d4edda','#cfe2f3','#f3e5f5','#e2f0cb','#fef9c3'
+];
+const COLOR_NAMES = [
+  'Rose','Peach','Yellow','Sage','Sky','Lavender',
+  'Apricot','Mint','Cornflower','Lilac','Pistachio','Cream'
+];
+const EMOJIS = [
+  '☀️','📚','🍎','🏕️','🏠','💤','☁️','🚶','🥗','📋','📝',
+  '🙏','🚗','📓','🌈','🍽️','❤️','🌙','🛌','⭐','🎯','💪',
+  '🧘','☕','🎵','🛒','🖊️','📞','💻','🌿','🔔','⏰','✅'
+];
+
+const DEFAULT_BLOCKS = [
+  { label: 'Wake-Up Block',                     start: '06:00', end: '06:45', emoji: '☀️',  color: '#fce5cd', alarm: false },
+  { label: 'Study Block',                        start: '06:45', end: '07:45', emoji: '📚', color: '#d0e4f3', alarm: false },
+  { label: 'Activation + Self-Care',             start: '07:45', end: '08:45', emoji: '🍎', color: '#fce5cd', alarm: false },
+  { label: "Camp Drop-Off / Sean's Chores",      start: '08:45', end: '09:15', emoji: '🏕️', color: '#fce5cd', alarm: false },
+  { label: 'Prepping the House for the Day',     start: '09:15', end: '10:00', emoji: '🏠', color: '#fce5cd', alarm: false },
+  { label: 'Nap Block',                          start: '10:00', end: '12:00', emoji: '💤', color: '#e8d5f0', alarm: false },
+  { label: 'After-Nap Transition',               start: '12:00', end: '12:30', emoji: '☁️', color: '#e8d5f0', alarm: false },
+  { label: 'Short Walk',                         start: '12:30', end: '12:45', emoji: '🚶', color: '#d9ead3', alarm: false },
+  { label: 'Lunch',                              start: '12:45', end: '13:00', emoji: '🥗', color: '#fff2cc', alarm: false },
+  { label: 'Optional — Work Sprint 1: Task Organization', start: '13:00', end: '13:15', emoji: '📋', color: '#d9ead3', alarm: false },
+  { label: 'Work Sprint 2: Communication',       start: '13:15', end: '13:30', emoji: '📋', color: '#d9ead3', alarm: false },
+  { label: "Work Sprint 3: Today's Focus",       start: '13:30', end: '13:45', emoji: '📋', color: '#d9ead3', alarm: false },
+  { label: 'Work Sprint 4: Scheduling',          start: '13:45', end: '14:00', emoji: '📋', color: '#d9ead3', alarm: false },
+  { label: 'Work Sprint 5: Follow Up / General Business', start: '14:00', end: '14:15', emoji: '📋', color: '#d9ead3', alarm: false },
+  { label: 'Work Sprint 6: Personal Tasks',      start: '14:15', end: '14:30', emoji: '📋', color: '#d9ead3', alarm: false },
+  { label: 'Prayer or Study Block',              start: '14:30', end: '14:45', emoji: '🙏', color: '#e8d5f0', alarm: false },
+  { label: 'Camp Pick-Up',                       start: '14:45', end: '16:15', emoji: '🚗', color: '#fce5cd', alarm: false },
+  { label: 'Sean: Check School Work + Writing Lesson', start: '16:15', end: '16:45', emoji: '📓', color: '#fff2cc', alarm: false },
+  { label: 'Margin',                             start: '16:45', end: '17:00', emoji: '🌈', color: '#fce5cd', alarm: false },
+  { label: 'Reset the House',                    start: '17:00', end: '17:30', emoji: '🏠', color: '#fce5cd', alarm: false },
+  { label: 'Dinner Block',                       start: '17:30', end: '18:00', emoji: '🍽️', color: '#fff2cc', alarm: false },
+  { label: 'Family Study & Prayers',             start: '18:00', end: '18:30', emoji: '🙏', color: '#e8d5f0', alarm: false },
+  { label: 'Family Connection Time',             start: '18:30', end: '19:45', emoji: '❤️', color: '#f8d7da', alarm: false },
+  { label: 'Bedtime Routine + After-Dinner Clean Up', start: '19:45', end: '20:15', emoji: '🌙', color: '#d0e4f3', alarm: false },
+  { label: 'In Bed',                             start: '20:15', end: '21:00', emoji: '🛌', color: '#e8d5f0', alarm: false },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────
+let blocks = [];
+let editingId = null;
+let alarmTimers = [];
+let dragSrcIndex = null;
+let dragOverIndex = null;
+
+const STORAGE_KEY = 'daily_schedule_v2';
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
+}
+function load() {
+  try {
+    const d = localStorage.getItem(STORAGE_KEY);
+    if (d) { blocks = JSON.parse(d); return; }
+  } catch(e) {}
+  blocks = DEFAULT_BLOCKS.map((b,i) => ({ ...b, id: Date.now()+i }));
+  save();
+}
+
+// ─── TIME HELPERS ────────────────────────────────────────────────
+function timeToMins(t) {
+  const [h,m] = t.split(':').map(Number);
+  return h*60+m;
+}
+function minsToTime(m) {
+  const h = Math.floor(((m % 1440) + 1440) % 1440 / 60);
+  const mn = ((m % 1440) + 1440) % 1440 % 60;
+  return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
+}
+function fmt12(t) {
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────
+function render() {
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  blocks.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'block';
+    el.dataset.index = i;
+    el.innerHTML = `
+      <div class="color-bar" style="background:${b.color}"></div>
+      <div class="drag-handle" data-index="${i}">⠿</div>
+      <div class="block-content">
+        <div class="block-top">
+          <span class="block-emoji">${b.emoji}</span>
+          <span class="block-label">${b.label}</span>
+          <span class="alarm-dot ${b.alarm ? 'active' : ''}"></span>
+        </div>
+        <div class="block-time">${fmt12(b.start)} – ${fmt12(b.end)}</div>
+      </div>
+      <div class="block-actions">
+        <button class="icon-btn edit-btn" data-index="${i}" title="Edit">✎</button>
+      </div>
+    `;
+
+    // Edit button
+    el.querySelector('.edit-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEdit(parseInt(e.currentTarget.dataset.index));
+    });
+
+    // Drag events (touch + mouse)
+    setupDrag(el, i);
+
+    list.appendChild(el);
+  });
+  scheduleAlarms();
+}
+
+// ─── DRAG & DROP ─────────────────────────────────────────────────
+function setupDrag(el, index) {
+  const handle = el.querySelector('.drag-handle');
+
+  // Mouse
+  handle.addEventListener('mousedown', (e) => startDrag(e, index, false));
+
+  // Touch
+  handle.addEventListener('touchstart', (e) => startDrag(e, index, true), { passive: false });
+}
+
+let dragEl = null;
+let dragClone = null;
+let dragOffsetY = 0;
+let dragStartY = 0;
+let isTouchDrag = false;
+
+function startDrag(e, index, isTouch) {
+  e.preventDefault();
+  dragSrcIndex = index;
+  isTouchDrag = isTouch;
+
+  const blockEls = document.querySelectorAll('.block');
+  dragEl = blockEls[index];
+  dragEl.classList.add('dragging');
+
+  const rect = dragEl.getBoundingClientRect();
+  const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+  dragOffsetY = clientY - rect.top;
+  dragStartY = clientY;
+
+  // Clone for visual ghost
+  dragClone = dragEl.cloneNode(true);
+  dragClone.style.cssText = `
+    position:fixed; left:${rect.left}px; top:${rect.top}px;
+    width:${rect.width}px; z-index:1000; opacity:0.9;
+    box-shadow:0 8px 30px rgba(0,0,0,0.25); pointer-events:none;
+    transform:scale(1.01); transition:none; border-radius:10px;
+    background:white;
+  `;
+  document.body.appendChild(dragClone);
+
+  if (isTouch) {
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchend', onDragEnd);
+  } else {
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+  }
+}
+
+function onDragMove(e) {
+  e.preventDefault();
+  const clientY = isTouchDrag ? e.touches[0].clientY : e.clientY;
+  dragClone.style.top = (clientY - dragOffsetY) + 'px';
+
+  // Find which block we're over
+  const blockEls = Array.from(document.querySelectorAll('.block:not(.dragging)'));
+  let newOver = null;
+  for (let i = 0; i < blockEls.length; i++) {
+    const rect = blockEls[i].getBoundingClientRect();
+    if (clientY >= rect.top && clientY <= rect.bottom) {
+      newOver = parseInt(blockEls[i].dataset.index);
+      break;
+    }
+  }
+
+  if (newOver !== dragOverIndex) {
+    document.querySelectorAll('.block').forEach(b => b.classList.remove('drag-over'));
+    if (newOver !== null && newOver !== dragSrcIndex) {
+      document.querySelectorAll('.block')[newOver]?.classList.add('drag-over');
+    }
+    dragOverIndex = newOver;
+  }
+}
+
+function onDragEnd(e) {
+  if (isTouchDrag) {
+    document.removeEventListener('touchmove', onDragMove);
+    document.removeEventListener('touchend', onDragEnd);
+  } else {
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragEnd);
+  }
+
+  if (dragClone) { dragClone.remove(); dragClone = null; }
+  document.querySelectorAll('.block').forEach(b => {
+    b.classList.remove('dragging','drag-over');
+  });
+
+  if (dragOverIndex !== null && dragOverIndex !== dragSrcIndex) {
+    reorder(dragSrcIndex, dragOverIndex);
+  }
+
+  dragSrcIndex = null;
+  dragOverIndex = null;
+  dragEl = null;
+}
+
+function reorder(fromIdx, toIdx) {
+  // Move block
+  const moved = blocks.splice(fromIdx, 1)[0];
+  blocks.splice(toIdx, 0, moved);
+
+  // Auto-reschedule: preserve durations, cascade from first block's start
+  const durations = blocks.map(b => timeToMins(b.end) - timeToMins(b.start));
+  let cursor = timeToMins(blocks[0].start);
+  blocks.forEach((b, i) => {
+    b.start = minsToTime(cursor);
+    b.end = minsToTime(cursor + durations[i]);
+    cursor += durations[i];
+  });
+
+  save();
+  render();
+}
+
+// ─── EDIT MODAL ──────────────────────────────────────────────────
+const EMOJI_OPTS = EMOJIS;
+
+function openEdit(index) {
+  editingId = index;
+  const b = blocks[index];
+  document.getElementById('modal-title').textContent = index === -1 ? 'New Block' : 'Edit Block';
+  document.getElementById('edit-label').value = b.label;
+  document.getElementById('edit-start').value = b.start;
+  document.getElementById('edit-end').value = b.end;
+  document.getElementById('edit-alarm').checked = b.alarm || false;
+
+  // Emoji
+  const er = document.getElementById('emoji-row');
+  er.innerHTML = EMOJI_OPTS.map(e =>
+    `<span class="emoji-option ${e===b.emoji?'selected':''}" data-emoji="${e}">${e}</span>`
+  ).join('');
+  er.querySelectorAll('.emoji-option').forEach(el => {
+    el.addEventListener('click', () => {
+      er.querySelectorAll('.emoji-option').forEach(x=>x.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+  });
+
+  // Colors
+  const cr = document.getElementById('color-row');
+  cr.innerHTML = COLORS.map((c,i) =>
+    `<div class="color-swatch ${c===b.color?'selected':''}" data-color="${c}" style="background:${c}" title="${COLOR_NAMES[i]}"></div>`
+  ).join('');
+  cr.querySelectorAll('.color-swatch').forEach(el => {
+    el.addEventListener('click', () => {
+      cr.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+  });
+
+  document.getElementById('delete-btn').style.display = index === -1 ? 'none' : '';
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('edit-label').focus();
+}
+
+function openAdd() {
+  const last = blocks[blocks.length-1];
+  const newStart = last ? last.end : '08:00';
+  const newEnd = minsToTime(timeToMins(newStart) + 30);
+  const newBlock = { id: Date.now(), label: '', start: newStart, end: newEnd, emoji: '⭐', color: COLORS[0], alarm: false };
+  blocks.push(newBlock);
+  editingId = blocks.length - 1;
+  openEdit(editingId);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null;
+}
+
+document.getElementById('save-btn').addEventListener('click', () => {
+  const label = document.getElementById('edit-label').value.trim() || 'Block';
+  const start = document.getElementById('edit-start').value;
+  const end = document.getElementById('edit-end').value;
+  const emoji = document.querySelector('#emoji-row .emoji-option.selected')?.dataset.emoji || '⭐';
+  const color = document.querySelector('#color-row .color-swatch.selected')?.dataset.color || COLORS[0];
+  const alarm = document.getElementById('edit-alarm').checked;
+
+  blocks[editingId] = { ...blocks[editingId], label, start, end, emoji, color, alarm };
+  save();
+  render();
+  closeModal();
+});
+
+document.getElementById('delete-btn').addEventListener('click', () => {
+  if (editingId !== null) {
+    blocks.splice(editingId, 1);
+    save();
+    render();
+    closeModal();
+  }
+});
+
+document.getElementById('cancel-btn').addEventListener('click', () => {
+  // If we were adding a new block (it has empty label), remove it
+  if (editingId !== null && blocks[editingId] && blocks[editingId].label === '') {
+    blocks.splice(editingId, 1);
+  }
+  closeModal();
+  render();
+});
+
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('cancel-btn').click();
+  }
+});
+
+document.getElementById('fab').addEventListener('click', openAdd);
+
+// ─── RESET ───────────────────────────────────────────────────────
+let resetStep = 0;
+let resetTimer = null;
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (resetStep === 0) {
+    resetStep = 1;
+    const btn = document.getElementById('reset-btn');
+    btn.textContent = 'Confirm Reset?';
+    btn.style.borderColor = '#c0392b';
+    btn.style.color = '#c0392b';
+    resetTimer = setTimeout(() => {
+      resetStep = 0;
+      btn.textContent = 'Reset';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 3000);
+  } else {
+    clearTimeout(resetTimer);
+    resetStep = 0;
+    const btn = document.getElementById('reset-btn');
+    btn.textContent = 'Reset';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    blocks = DEFAULT_BLOCKS.map((b,i) => ({ ...b, id: Date.now()+i }));
+    save();
+    render();
+    showBanner('Schedule reset to defaults');
+  }
+});
+
+// ─── NOTIFICATIONS / ALARMS ──────────────────────────────────────
+function showBanner(msg) {
+  const b = document.getElementById('notif-banner');
+  b.textContent = msg;
+  b.classList.add('show');
+  setTimeout(() => b.classList.remove('show'), 3000);
+}
+
+document.getElementById('notif-btn').addEventListener('click', () => {
+  if (!('Notification' in window)) {
+    showBanner('Notifications not supported in this browser');
+    return;
+  }
+  Notification.requestPermission().then(p => {
+    if (p === 'granted') {
+      showBanner('🔔 Notifications enabled!');
+      document.getElementById('notif-btn').textContent = '🔔 Alerts On';
+      document.getElementById('notif-btn').style.background = '#3d6b4f';
+    } else {
+      showBanner('Notification permission denied');
+    }
+  });
+});
+
+function scheduleAlarms() {
+  alarmTimers.forEach(t => clearTimeout(t));
+  alarmTimers = [];
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const now = new Date();
+  blocks.forEach(b => {
+    if (!b.alarm) return;
+    const [h,m] = b.start.split(':').map(Number);
+    const alarmTime = new Date();
+    alarmTime.setHours(h, m, 0, 0);
+    if (alarmTime <= now) alarmTime.setDate(alarmTime.getDate()+1);
+    const delay = alarmTime - now;
+    if (delay < 86400000) {
+      const t = setTimeout(() => {
+        new Notification('⏰ ' + b.emoji + ' ' + b.label, {
+          body: fmt12(b.start) + ' – ' + fmt12(b.end),
+          icon: ''
+        });
+      }, delay);
+      alarmTimers.push(t);
+    }
+  });
+}
+
+// ─── INIT ────────────────────────────────────────────────────────
+load();
+render();
+
+// Update alarm button if already granted
+if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+  document.getElementById('notif-btn').textContent = '🔔 Alerts On';
+  document.getElementById('notif-btn').style.background = '#3d6b4f';
+  document.getElementById('notif-btn').style.color = 'white';
+  document.getElementById('notif-btn').style.borderColor = '#3d6b4f';
+}
+</script>
+</body>
+</html>
