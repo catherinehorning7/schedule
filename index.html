@@ -453,6 +453,34 @@
   .time-fields { display: flex; gap: 10px; }
   .time-fields .field { flex: 1; }
 
+  /* Lock indicator on block */
+  .lock-icon {
+    font-size: 11px;
+    opacity: 0.5;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  /* Conflict state */
+  .block.conflict {
+    border-color: #e74c3c !important;
+    background: #fff5f5 !important;
+  }
+  .block.conflict .block-time {
+    color: #e74c3c;
+    font-weight: 600;
+  }
+  .block.conflict .color-bar {
+    background: #e74c3c !important;
+  }
+  .conflict-label {
+    font-size: 10px;
+    color: #e74c3c;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
   #page-title {
     cursor: pointer;
     border-bottom: 1.5px dashed transparent;
@@ -522,6 +550,16 @@
         <span style="font-size:13px;color:var(--text-dim)">Notify at block start time</span>
       </div>
     </div>
+    <div class="field">
+      <label>Fixed Time</label>
+      <div class="alarm-row">
+        <label class="toggle">
+          <input type="checkbox" id="edit-locked">
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:13px;color:var(--text-dim)">Lock — times won't auto-adjust</span>
+      </div>
+    </div>
     <div class="modal-buttons">
       <button class="btn danger-btn" id="delete-btn">Delete</button>
       <button class="btn" id="cancel-btn">Cancel</button>
@@ -586,7 +624,7 @@ let alarmTimers = [];
 let dragSrcIndex = null;
 let dragOverIndex = null;
 
-const STORAGE_KEY = 'daily_schedule_v4';
+const STORAGE_KEY = 'daily_schedule_v5';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
@@ -626,8 +664,9 @@ function render() {
   const done = blocks.filter(b => b.done);
 
   const renderBlock = (b, i) => {
+    const isConflict = !b.done && timeToMins(b.end) < timeToMins(b.start);
     const el = document.createElement('div');
-    el.className = 'block' + (b.done ? ' done' : '');
+    el.className = 'block' + (b.done ? ' done' : '') + (isConflict ? ' conflict' : '');
     el.dataset.index = i;
     el.innerHTML = `
       <div class="color-bar" style="background:${b.color}"></div>
@@ -636,9 +675,13 @@ function render() {
         <div class="block-top">
           <span class="block-emoji">${b.emoji}</span>
           <span class="block-label">${b.label || '—'}</span>
+          ${b.locked ? '<span class="lock-icon">🔒</span>' : ''}
           <span class="alarm-dot ${b.alarm ? 'active' : ''}"></span>
         </div>
-        <div class="block-time">${fmt12(b.start)} – ${fmt12(b.end)}</div>
+        <div class="block-time">
+          ${fmt12(b.start)} – ${fmt12(b.end)}
+          ${isConflict ? ' <span class="conflict-label">⚠ conflict</span>' : ''}
+        </div>
       </div>
       <div class="block-actions">
         <button class="icon-btn edit-btn" data-index="${i}" title="Edit">✎</button>
@@ -690,8 +733,11 @@ function setupDrag(el, index) {
   // Mouse
   handle.addEventListener('mousedown', (e) => startDrag(e, index, false));
 
-  // Touch
-  handle.addEventListener('touchstart', (e) => startDrag(e, index, true), { passive: false });
+  // Touch — only from handle, passive:false only on handle so rest of page can scroll
+  handle.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // prevent scroll only when grabbing handle
+    startDrag(e, index, true);
+  }, { passive: false });
 }
 
 let dragEl = null;
@@ -735,6 +781,7 @@ function startDrag(e, index, isTouch) {
 }
 
 function onDragMove(e) {
+  if (!dragClone) return;
   e.preventDefault();
   const clientY = isTouchDrag ? e.touches[0].clientY : e.clientY;
   dragClone.style.top = (clientY - dragOffsetY) + 'px';
@@ -811,6 +858,7 @@ function openEdit(index) {
   document.getElementById('edit-start').value = b.start;
   document.getElementById('edit-end').value = b.end;
   document.getElementById('edit-alarm').checked = b.alarm || false;
+  document.getElementById('edit-locked').checked = b.locked || false;
 
   // Emoji
   const er = document.getElementById('emoji-row');
@@ -863,14 +911,31 @@ document.getElementById('save-btn').addEventListener('click', () => {
   const emoji = document.querySelector('#emoji-row .emoji-option.selected')?.dataset.emoji || '⭐';
   const color = document.querySelector('#color-row .color-swatch.selected')?.dataset.color || COLORS[0];
   const alarm = document.getElementById('edit-alarm').checked;
+  const locked = document.getElementById('edit-locked').checked;
 
   const prevEnd = blocks[editingId].end;
-  blocks[editingId] = { ...blocks[editingId], label, start, end, emoji, color, alarm };
+  blocks[editingId] = { ...blocks[editingId], label, start, end, emoji, color, alarm, locked };
 
-  // If end time changed, update the next block's start time to match
+  // If end time changed, cascade to next unlocked block
+  // Stop cascade at locked blocks — next unlocked block after a locked one is not touched
   if (end !== prevEnd) {
     const nextIdx = blocks.findIndex((b, i) => i > editingId && !b.done);
-    if (nextIdx !== -1) blocks[nextIdx].start = end;
+    if (nextIdx !== -1 && !blocks[nextIdx].locked) {
+      const nextDuration = timeToMins(blocks[nextIdx].end) - timeToMins(blocks[nextIdx].start);
+      blocks[nextIdx].start = end;
+      // Preserve duration — end shifts too
+      blocks[nextIdx].end = minsToTime(timeToMins(end) + nextDuration);
+      // If next block now overruns a downstream locked block, collapse it
+      // Find next locked block after nextIdx
+      const lockedIdx = blocks.findIndex((b, i) => i > nextIdx && b.locked && !b.done);
+      if (lockedIdx !== -1) {
+        const lockedStart = timeToMins(blocks[lockedIdx].start);
+        if (timeToMins(blocks[nextIdx].end) > lockedStart) {
+          // Collapse: start = end of prev, end = locked block start (may be zero or negative duration)
+          blocks[nextIdx].end = blocks[lockedIdx].start;
+        }
+      }
+    }
   }
 
   save();
