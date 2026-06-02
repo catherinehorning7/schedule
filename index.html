@@ -549,31 +549,31 @@ const EMOJIS = [
 ];
 
 const DEFAULT_BLOCKS = [
-  { label: 'Wake-Up Block',                     start: '06:00', end: '06:45', emoji: '☀️',  color: '#fce5cd', alarm: false },
-  { label: 'Study Block',                        start: '06:45', end: '07:45', emoji: '📚', color: '#d0e4f3', alarm: false },
-  { label: 'Activation + Self-Care',             start: '07:45', end: '08:45', emoji: '🍎', color: '#fce5cd', alarm: false },
-  { label: "Camp Drop-Off / Sean's Chores",      start: '08:45', end: '09:15', emoji: '🏕️', color: '#fce5cd', alarm: false },
-  { label: 'Prepping the House for the Day',     start: '09:15', end: '10:00', emoji: '🏠', color: '#fce5cd', alarm: false },
-  { label: 'Nap Block',                          start: '10:00', end: '12:00', emoji: '💤', color: '#e8d5f0', alarm: false },
-  { label: 'After-Nap Transition',               start: '12:00', end: '12:30', emoji: '☁️', color: '#e8d5f0', alarm: false },
-  { label: 'Short Walk',                         start: '12:30', end: '12:45', emoji: '🚶', color: '#d9ead3', alarm: false },
-  { label: 'Lunch',                              start: '12:45', end: '13:00', emoji: '🥗', color: '#fff2cc', alarm: false },
-  { label: 'Optional — Work Sprint 1: Task Organization', start: '13:00', end: '13:15', emoji: '📋', color: '#d9ead3', alarm: false },
-  { label: 'Work Sprint 2: Communication',       start: '13:15', end: '13:30', emoji: '📋', color: '#d9ead3', alarm: false },
-  { label: "Work Sprint 3: Today's Focus",       start: '13:30', end: '13:45', emoji: '📋', color: '#d9ead3', alarm: false },
-  { label: 'Work Sprint 4: Scheduling',          start: '13:45', end: '14:00', emoji: '📋', color: '#d9ead3', alarm: false },
-  { label: 'Work Sprint 5: Follow Up / General Business', start: '14:00', end: '14:15', emoji: '📋', color: '#d9ead3', alarm: false },
-  { label: 'Work Sprint 6: Personal Tasks',      start: '14:15', end: '14:30', emoji: '📋', color: '#d9ead3', alarm: false },
-  { label: 'Prayer or Study Block',              start: '14:30', end: '15:45', emoji: '🙏', color: '#e8d5f0', alarm: false },
-  { label: 'Camp Pick-Up',                       start: '15:45', end: '16:15', emoji: '🚗', color: '#fce5cd', alarm: false },
-  { label: 'Sean: Check School Work + Writing Lesson', start: '16:15', end: '16:45', emoji: '📓', color: '#fff2cc', alarm: false },
-  { label: 'Margin',                             start: '16:45', end: '17:30', emoji: '🌈', color: '#fce5cd', alarm: false },
-  { label: 'Reset the House',                    start: '17:30', end: '18:00', emoji: '🏠', color: '#fce5cd', alarm: false },
-  { label: 'Dinner Block',                       start: '18:00', end: '18:30', emoji: '🍽️', color: '#fff2cc', alarm: false },
-  { label: 'Family Study & Prayers',             start: '18:30', end: '19:00', emoji: '🙏', color: '#e8d5f0', alarm: false },
-  { label: 'Family Connection Time',             start: '19:00', end: '20:15', emoji: '❤️', color: '#f8d7da', alarm: false },
-  { label: 'Bedtime Routine + After-Dinner Clean Up', start: '20:15', end: '20:45', emoji: '🌙', color: '#d0e4f3', alarm: false },
-  { label: 'In Bed',                             start: '20:45', end: '21:00', emoji: '🛌', color: '#e8d5f0', alarm: false },
+  { label: 'Wake-Up Block',                     start: '06:00', end: '06:45', emoji: '☀️',  color: '#fce5cd', alarm: true },
+  { label: 'Study Block',                        start: '06:45', end: '07:45', emoji: '📚', color: '#d0e4f3', alarm: true },
+  { label: 'Activation + Self-Care',             start: '07:45', end: '08:45', emoji: '🍎', color: '#fce5cd', alarm: true },
+  { label: "Camp Drop-Off / Sean's Chores",      start: '08:45', end: '09:15', emoji: '🏕️', color: '#fce5cd', alarm: true },
+  { label: 'Prepping the House for the Day',     start: '09:15', end: '10:00', emoji: '🏠', color: '#fce5cd', alarm: true },
+  { label: 'Nap Block',                          start: '10:00', end: '12:00', emoji: '💤', color: '#e8d5f0', alarm: true },
+  { label: 'After-Nap Transition',               start: '12:00', end: '12:30', emoji: '☁️', color: '#e8d5f0', alarm: true },
+  { label: 'Short Walk',                         start: '12:30', end: '12:45', emoji: '🚶', color: '#d9ead3', alarm: true },
+  { label: 'Lunch',                              start: '12:45', end: '13:00', emoji: '🥗', color: '#fff2cc', alarm: true },
+  { label: 'Optional — Work Sprint 1: Task Organization', start: '13:00', end: '13:15', emoji: '📋', color: '#d9ead3', alarm: true },
+  { label: 'Work Sprint 2: Communication',       start: '13:15', end: '13:30', emoji: '📋', color: '#d9ead3', alarm: true },
+  { label: "Work Sprint 3: Today's Focus",       start: '13:30', end: '13:45', emoji: '📋', color: '#d9ead3', alarm: true },
+  { label: 'Work Sprint 4: Scheduling',          start: '13:45', end: '14:00', emoji: '📋', color: '#d9ead3', alarm: true },
+  { label: 'Work Sprint 5: Follow Up / General Business', start: '14:00', end: '14:15', emoji: '📋', color: '#d9ead3', alarm: true },
+  { label: 'Work Sprint 6: Personal Tasks',      start: '14:15', end: '14:30', emoji: '📋', color: '#d9ead3', alarm: true },
+  { label: 'Prayer or Study Block',              start: '14:30', end: '15:45', emoji: '🙏', color: '#e8d5f0', alarm: true },
+  { label: 'Camp Pick-Up',                       start: '15:45', end: '16:15', emoji: '🚗', color: '#fce5cd', alarm: true },
+  { label: 'Sean: Check School Work + Writing Lesson', start: '16:15', end: '16:45', emoji: '📓', color: '#fff2cc', alarm: true },
+  { label: 'Margin',                             start: '16:45', end: '17:30', emoji: '🌈', color: '#fce5cd', alarm: true },
+  { label: 'Reset the House',                    start: '17:30', end: '18:00', emoji: '🏠', color: '#fce5cd', alarm: true },
+  { label: 'Dinner Block',                       start: '18:00', end: '18:30', emoji: '🍽️', color: '#fff2cc', alarm: true },
+  { label: 'Family Study & Prayers',             start: '18:30', end: '19:00', emoji: '🙏', color: '#e8d5f0', alarm: true },
+  { label: 'Family Connection Time',             start: '19:00', end: '20:15', emoji: '❤️', color: '#f8d7da', alarm: true },
+  { label: 'Bedtime Routine + After-Dinner Clean Up', start: '20:15', end: '20:45', emoji: '🌙', color: '#d0e4f3', alarm: true },
+  { label: 'In Bed',                             start: '20:45', end: '21:00', emoji: '🛌', color: '#e8d5f0', alarm: true },
   { label: '',                                   start: '21:00', end: '22:00', emoji: '⭐', color: '#fef9c3', alarm: false },
   { label: '',                                   start: '22:00', end: '23:00', emoji: '⭐', color: '#fef9c3', alarm: false },
   { label: '',                                   start: '23:00', end: '00:00', emoji: '⭐', color: '#fef9c3', alarm: false },
@@ -586,7 +586,7 @@ let alarmTimers = [];
 let dragSrcIndex = null;
 let dragOverIndex = null;
 
-const STORAGE_KEY = 'daily_schedule_v3';
+const STORAGE_KEY = 'daily_schedule_v4';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
