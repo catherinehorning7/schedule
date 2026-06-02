@@ -396,12 +396,30 @@
 
   .time-fields { display: flex; gap: 10px; }
   .time-fields .field { flex: 1; }
+
+  #page-title {
+    cursor: pointer;
+    border-bottom: 1.5px dashed transparent;
+    transition: border-color 0.15s;
+    outline: none;
+    min-width: 40px;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #page-title:hover { border-bottom-color: var(--border); }
+  #page-title[contenteditable="true"] {
+    border-bottom-color: var(--accent);
+    white-space: nowrap;
+    overflow: visible;
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>⏱ Daily Schedule</h1>
+  <h1 id="page-title" title="Tap to edit">⏱ Daily Schedule</h1>
   <div class="header-actions">
     <button class="btn small" id="reset-btn">Reset</button>
     <button class="btn small primary" id="notif-btn">🔔 Allow Alerts</button>
@@ -873,8 +891,43 @@ function scheduleAlarms() {
   });
 }
 
+// ─── EDITABLE TITLE ──────────────────────────────────────────────
+const titleEl = document.getElementById('page-title');
+const TITLE_KEY = 'daily_schedule_title';
+
+function loadTitle() {
+  const saved = localStorage.getItem(TITLE_KEY);
+  if (saved) titleEl.textContent = saved;
+}
+function saveTitle() {
+  localStorage.setItem(TITLE_KEY, titleEl.textContent.trim() || '⏱ Daily Schedule');
+}
+
+titleEl.addEventListener('click', () => {
+  titleEl.contentEditable = 'true';
+  titleEl.focus();
+  // Place cursor at end
+  const range = document.createRange();
+  range.selectNodeContents(titleEl);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+});
+
+titleEl.addEventListener('blur', () => {
+  titleEl.contentEditable = 'false';
+  if (!titleEl.textContent.trim()) titleEl.textContent = '⏱ Daily Schedule';
+  saveTitle();
+});
+
+titleEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+});
+
 // ─── INIT ────────────────────────────────────────────────────────
 load();
+loadTitle();
 render();
 
 // Update alarm button if already granted
