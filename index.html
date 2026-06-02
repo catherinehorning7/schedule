@@ -127,6 +127,7 @@
     color: #c0bdb6;
     font-size: 15px;
     user-select: none;
+    touch-action: none;
   }
   .drag-handle:active { cursor: grabbing; }
 
@@ -624,7 +625,7 @@ let alarmTimers = [];
 let dragSrcIndex = null;
 let dragOverIndex = null;
 
-const STORAGE_KEY = 'daily_schedule_v6';
+const STORAGE_KEY = 'daily_schedule_v7';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
@@ -729,15 +730,8 @@ function render() {
 // ─── DRAG & DROP ─────────────────────────────────────────────────
 function setupDrag(el, index) {
   const handle = el.querySelector('.drag-handle');
-
-  // Mouse
   handle.addEventListener('mousedown', (e) => startDrag(e, index, false));
-
-  // Touch — only from handle, passive:false only on handle so rest of page can scroll
-  handle.addEventListener('touchstart', (e) => {
-    e.preventDefault(); // prevent scroll only when grabbing handle
-    startDrag(e, index, true);
-  }, { passive: false });
+  handle.addEventListener('touchstart', (e) => startDrag(e, index, true), { passive: true });
 }
 
 let dragEl = null;
@@ -772,7 +766,7 @@ function startDrag(e, index, isTouch) {
   document.body.appendChild(dragClone);
 
   if (isTouch) {
-    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchmove', onDragMove, { passive: true });
     document.addEventListener('touchend', onDragEnd);
   } else {
     document.addEventListener('mousemove', onDragMove);
@@ -782,7 +776,6 @@ function startDrag(e, index, isTouch) {
 
 function onDragMove(e) {
   if (!dragClone) return;
-  e.preventDefault();
   const clientY = isTouchDrag ? e.touches[0].clientY : e.clientY;
   dragClone.style.top = (clientY - dragOffsetY) + 'px';
 
