@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Daily Schedule</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -29,7 +29,6 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    overscroll-behavior: none;
   }
 
   header {
@@ -498,6 +497,36 @@
     white-space: nowrap;
     overflow: visible;
   }
+  #notes-box {
+    margin: 10px 12px 0;
+    background: #fffef5;
+    border: 1.5px solid #e8e4c8;
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  #notes-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+  #notes-text {
+    width: 100%;
+    min-height: 52px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    line-height: 1.5;
+    padding: 0;
+  }
+  #notes-text::placeholder { color: #bbb8ae; }
 </style>
 </head>
 <body>
@@ -509,6 +538,11 @@
     <button class="btn small primary" id="notif-btn">🔔 Allow Alerts</button>
   </div>
 </header>
+
+<div id="notes-box">
+  <div id="notes-label">📝 Notes</div>
+  <textarea id="notes-text" placeholder="Today's variances, reminders, anything to keep in mind…" rows="2"></textarea>
+</div>
 
 <div id="list"></div>
 
@@ -624,7 +658,7 @@ let alarmTimers = [];
 let dragSrcIndex = null;
 let dragOverIndex = null;
 
-const STORAGE_KEY = 'daily_schedule_v8';
+const STORAGE_KEY = 'daily_schedule_v10';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
@@ -1071,6 +1105,14 @@ function scheduleAlarms() {
     }
   });
 }
+
+// ─── NOTES ───────────────────────────────────────────────────────
+const notesEl = document.getElementById('notes-text');
+const NOTES_KEY = 'daily_schedule_notes';
+notesEl.value = localStorage.getItem(NOTES_KEY) || '';
+notesEl.addEventListener('input', () => {
+  localStorage.setItem(NOTES_KEY, notesEl.value);
+});
 
 // ─── EDITABLE TITLE ──────────────────────────────────────────────
 const titleEl = document.getElementById('page-title');
