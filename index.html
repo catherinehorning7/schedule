@@ -127,7 +127,6 @@
     color: #c0bdb6;
     font-size: 15px;
     user-select: none;
-    touch-action: none;
   }
   .drag-handle:active { cursor: grabbing; }
 
@@ -625,7 +624,7 @@ let alarmTimers = [];
 let dragSrcIndex = null;
 let dragOverIndex = null;
 
-const STORAGE_KEY = 'daily_schedule_v7';
+const STORAGE_KEY = 'daily_schedule_v8';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
@@ -728,20 +727,52 @@ function render() {
 }
 
 // ─── DRAG & DROP ─────────────────────────────────────────────────
-function setupDrag(el, index) {
-  const handle = el.querySelector('.drag-handle');
-  handle.addEventListener('mousedown', (e) => startDrag(e, index, false));
-  handle.addEventListener('touchstart', (e) => startDrag(e, index, true), { passive: true });
-}
-
 let dragEl = null;
 let dragClone = null;
 let dragOffsetY = 0;
-let dragStartY = 0;
 let isTouchDrag = false;
+let longPressTimer = null;
+let dragActive = false;
+let touchStartY = 0;
+
+function setupDrag(el, index) {
+  const handle = el.querySelector('.drag-handle');
+
+  // Mouse drag (desktop)
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startDrag(e, index, false);
+  });
+
+  // Touch: long-press to activate drag, otherwise allow scroll
+  handle.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+    longPressTimer = setTimeout(() => {
+      dragActive = true;
+      startDrag(e, index, true);
+    }, 300);
+  }, { passive: true });
+
+  handle.addEventListener('touchmove', (e) => {
+    // Cancel long press if finger moves significantly before timer fires
+    if (!dragActive) {
+      const dy = Math.abs(e.touches[0].clientY - touchStartY);
+      if (dy > 8) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+  }, { passive: true });
+
+  handle.addEventListener('touchend', () => {
+    if (!dragActive) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }, { passive: true });
+}
 
 function startDrag(e, index, isTouch) {
-  e.preventDefault();
   dragSrcIndex = index;
   isTouchDrag = isTouch;
 
@@ -752,22 +783,20 @@ function startDrag(e, index, isTouch) {
   const rect = dragEl.getBoundingClientRect();
   const clientY = isTouch ? e.touches[0].clientY : e.clientY;
   dragOffsetY = clientY - rect.top;
-  dragStartY = clientY;
 
-  // Clone for visual ghost
   dragClone = dragEl.cloneNode(true);
   dragClone.style.cssText = `
     position:fixed; left:${rect.left}px; top:${rect.top}px;
     width:${rect.width}px; z-index:1000; opacity:0.9;
     box-shadow:0 8px 30px rgba(0,0,0,0.25); pointer-events:none;
-    transform:scale(1.01); transition:none; border-radius:10px;
+    transform:scale(1.02); transition:none; border-radius:10px;
     background:white;
   `;
   document.body.appendChild(dragClone);
 
   if (isTouch) {
-    document.addEventListener('touchmove', onDragMove, { passive: true });
-    document.addEventListener('touchend', onDragEnd);
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchend', onDragEnd, { passive: true });
   } else {
     document.addEventListener('mousemove', onDragMove);
     document.addEventListener('mouseup', onDragEnd);
@@ -776,10 +805,10 @@ function startDrag(e, index, isTouch) {
 
 function onDragMove(e) {
   if (!dragClone) return;
+  if (isTouchDrag) e.preventDefault(); // only prevent scroll during active drag
   const clientY = isTouchDrag ? e.touches[0].clientY : e.clientY;
   dragClone.style.top = (clientY - dragOffsetY) + 'px';
 
-  // Find which block we're over
   const blockEls = Array.from(document.querySelectorAll('.block:not(.dragging)'));
   let newOver = null;
   for (let i = 0; i < blockEls.length; i++) {
@@ -799,7 +828,8 @@ function onDragMove(e) {
   }
 }
 
-function onDragEnd(e) {
+function onDragEnd() {
+  dragActive = false;
   if (isTouchDrag) {
     document.removeEventListener('touchmove', onDragMove);
     document.removeEventListener('touchend', onDragEnd);
@@ -809,9 +839,7 @@ function onDragEnd(e) {
   }
 
   if (dragClone) { dragClone.remove(); dragClone = null; }
-  document.querySelectorAll('.block').forEach(b => {
-    b.classList.remove('dragging','drag-over');
-  });
+  document.querySelectorAll('.block').forEach(b => b.classList.remove('dragging','drag-over'));
 
   if (dragOverIndex !== null && dragOverIndex !== dragSrcIndex) {
     reorder(dragSrcIndex, dragOverIndex);
