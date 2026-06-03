@@ -657,11 +657,8 @@ const DEFAULT_BLOCKS = [
 let blocks = [];
 let editingId = null;
 let alarmTimers = [];
-let dragSrcIndex = null;
-let dragOverIndex = null;
-let isTouchDrag = false;
 
-const STORAGE_KEY = 'daily_schedule_v13';
+const STORAGE_KEY = 'daily_schedule_v14';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
