@@ -661,7 +661,7 @@ let dragSrcIndex = null;
 let dragOverIndex = null;
 let isTouchDrag = false;
 
-const STORAGE_KEY = 'daily_schedule_v12';
+const STORAGE_KEY = 'daily_schedule_v13';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
@@ -669,7 +669,13 @@ function save() {
 function load() {
   try {
     const d = localStorage.getItem(STORAGE_KEY);
-    if (d) { blocks = JSON.parse(d); return; }
+    if (d) {
+      const parsed = JSON.parse(d);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        blocks = parsed;
+        return;
+      }
+    }
   } catch(e) {}
   blocks = DEFAULT_BLOCKS.map((b,i) => ({ ...b, id: Date.now()+i }));
   save();
@@ -701,6 +707,7 @@ function render() {
   const done = blocks.filter(b => b.done);
 
   const renderBlock = (b, i) => {
+    if (!b || !b.start || !b.end) return; // skip malformed blocks
     const isConflict = !b.done && timeToMins(b.end) < timeToMins(b.start);
     const el = document.createElement('div');
     el.className = 'block' + (b.done ? ' done' : '') + (isConflict ? ' conflict' : '');
