@@ -120,14 +120,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
+    width: 36px;
     flex-shrink: 0;
     cursor: grab;
     color: #c0bdb6;
     font-size: 15px;
     user-select: none;
+    touch-action: none;
+    -webkit-user-select: none;
   }
-  .drag-handle:active { cursor: grabbing; }
+  .drag-handle:active { cursor: grabbing; color: #888; }
 
   .block-content {
     flex: 1;
@@ -657,8 +659,9 @@ let editingId = null;
 let alarmTimers = [];
 let dragSrcIndex = null;
 let dragOverIndex = null;
+let isTouchDrag = false;
 
-const STORAGE_KEY = 'daily_schedule_v10';
+const STORAGE_KEY = 'daily_schedule_v12';
 
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); } catch(e) {}
@@ -761,52 +764,54 @@ function render() {
 }
 
 // ─── DRAG & DROP ─────────────────────────────────────────────────
+// Touch tracking is scoped entirely to the handle element.
+// touch-action:none on the handle tells the browser that element
+// owns its touch events; the rest of the page scrolls freely.
+// We never attach touch listeners to document.
+
 let dragEl = null;
 let dragClone = null;
 let dragOffsetY = 0;
-let isTouchDrag = false;
-let longPressTimer = null;
 let dragActive = false;
-let touchStartY = 0;
+let dragSrcIndex = null;
+let dragOverIndex = null;
+let isTouchDrag = false;
 
 function setupDrag(el, index) {
   const handle = el.querySelector('.drag-handle');
 
-  // Mouse drag (desktop)
+  // ── Mouse (desktop) ──
   handle.addEventListener('mousedown', (e) => {
     e.preventDefault();
-    startDrag(e, index, false);
+    initDrag(e.clientY, index, false);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   });
 
-  // Touch: long-press to activate drag, otherwise allow scroll
+  // ── Touch (mobile) ──
+  // touch-action:none on handle means browser hands ALL touch events
+  // for this element to JS — page scroll is unaffected elsewhere.
   handle.addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
-    longPressTimer = setTimeout(() => {
-      dragActive = true;
-      startDrag(e, index, true);
-    }, 300);
-  }, { passive: true });
+    initDrag(e.touches[0].clientY, index, true);
+  }, { passive: false });
 
   handle.addEventListener('touchmove', (e) => {
-    // Cancel long press if finger moves significantly before timer fires
-    if (!dragActive) {
-      const dy = Math.abs(e.touches[0].clientY - touchStartY);
-      if (dy > 8) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    }
-  }, { passive: true });
+    if (!dragActive) return;
+    e.preventDefault(); // safe: scoped to handle which has touch-action:none
+    moveDrag(e.touches[0].clientY);
+  }, { passive: false });
 
   handle.addEventListener('touchend', () => {
-    if (!dragActive) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
+    if (dragActive) endDrag();
+  }, { passive: true });
+
+  handle.addEventListener('touchcancel', () => {
+    if (dragActive) endDrag();
   }, { passive: true });
 }
 
-function startDrag(e, index, isTouch) {
+function initDrag(clientY, index, isTouch) {
+  dragActive = true;
   dragSrcIndex = index;
   isTouchDrag = isTouch;
 
@@ -815,32 +820,21 @@ function startDrag(e, index, isTouch) {
   dragEl.classList.add('dragging');
 
   const rect = dragEl.getBoundingClientRect();
-  const clientY = isTouch ? e.touches[0].clientY : e.clientY;
   dragOffsetY = clientY - rect.top;
 
   dragClone = dragEl.cloneNode(true);
   dragClone.style.cssText = `
     position:fixed; left:${rect.left}px; top:${rect.top}px;
-    width:${rect.width}px; z-index:1000; opacity:0.9;
+    width:${rect.width}px; z-index:1000; opacity:0.88;
     box-shadow:0 8px 30px rgba(0,0,0,0.25); pointer-events:none;
     transform:scale(1.02); transition:none; border-radius:10px;
     background:white;
   `;
   document.body.appendChild(dragClone);
-
-  if (isTouch) {
-    document.addEventListener('touchmove', onDragMove, { passive: false });
-    document.addEventListener('touchend', onDragEnd, { passive: true });
-  } else {
-    document.addEventListener('mousemove', onDragMove);
-    document.addEventListener('mouseup', onDragEnd);
-  }
 }
 
-function onDragMove(e) {
+function moveDrag(clientY) {
   if (!dragClone) return;
-  if (isTouchDrag) e.preventDefault(); // only prevent scroll during active drag
-  const clientY = isTouchDrag ? e.touches[0].clientY : e.clientY;
   dragClone.style.top = (clientY - dragOffsetY) + 'px';
 
   const blockEls = Array.from(document.querySelectorAll('.block:not(.dragging)'));
@@ -852,7 +846,6 @@ function onDragMove(e) {
       break;
     }
   }
-
   if (newOver !== dragOverIndex) {
     document.querySelectorAll('.block').forEach(b => b.classList.remove('drag-over'));
     if (newOver !== null && newOver !== dragSrcIndex) {
@@ -862,26 +855,23 @@ function onDragMove(e) {
   }
 }
 
-function onDragEnd() {
+function endDrag() {
   dragActive = false;
-  if (isTouchDrag) {
-    document.removeEventListener('touchmove', onDragMove);
-    document.removeEventListener('touchend', onDragEnd);
-  } else {
-    document.removeEventListener('mousemove', onDragMove);
-    document.removeEventListener('mouseup', onDragEnd);
-  }
-
   if (dragClone) { dragClone.remove(); dragClone = null; }
-  document.querySelectorAll('.block').forEach(b => b.classList.remove('dragging','drag-over'));
-
+  document.querySelectorAll('.block').forEach(b => b.classList.remove('dragging', 'drag-over'));
   if (dragOverIndex !== null && dragOverIndex !== dragSrcIndex) {
     reorder(dragSrcIndex, dragOverIndex);
   }
-
   dragSrcIndex = null;
   dragOverIndex = null;
   dragEl = null;
+}
+
+function onMouseMove(e) { moveDrag(e.clientY); }
+function onMouseUp() {
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onMouseUp);
+  endDrag();
 }
 
 function reorder(fromIdx, toIdx) {
